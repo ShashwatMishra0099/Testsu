@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surround Sound Party Room</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+    .hidden { display: none; }
+    .container { max-width: 400px; width: 100%; margin-top: 50px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; }
+    #participants { list-style: none; padding: 0; }
+    #participants li { padding: 5px 0; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <div id="auth" class="container">
+    <h2>Signing in...</h2>
+  </div>  <div id="lobby" class="container hidden">
+    <button id="btn-create">Create Room</button>
+    <input id="input-code" placeholder="Enter Room Code" />
+    <button id="btn-join">Join Room</button>
+  </div>  <div id="room" class="container hidden">
+    <h3>Room: <span id="room-code"></span></h3>
+    <h4>Participants</h4>
+    <ul id="participants"></ul>
+    <h4>Track</h4>
+    <input type="file" id="file-input" accept="audio/*" />
+    <button id="btn-upload">Upload & Select</button>
+    <button id="btn-play" disabled>Play</button>
+  </div><script>
+  // Supabase client setup
+  const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentRoom = null;
+  let localUser = null;
+  let audioCtx, buffer;
+
+  // DOM elements
+  const authEl = document.getElementById('auth');
+  const lobbyEl = document.getElementById('lobby');
+  const roomEl = document.getElementById('room');
+  const codeInput = document.getElementById('input-code');
+  const createBtn = document.getElementById('btn-create');
+  const joinBtn = document.getElementById('btn-join');
+  const roomCodeEl = document.getElementById('room-code');
+  const participantsEl = document.getElementById('participants');
+  const fileInput = document.getElementById('file-input');
+  const uploadBtn = document.getElementById('btn-upload');
+  const playBtn = document.getElementById('btn-play');
+
+  // Initialize: sign in anonymously
+  async function init() {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: `${Date.now()}@anon.com`, password: 'password' });
+    if (error) {
+      // fallback to anon
+      const { data: anonData } = await supabase.auth.signInWithOAuth({ provider: 'github' });
+      localUser = anonData.user;
+    } else localUser = data.user;
+
+    authEl.classList.add('hidden');
+    lobbyEl.classList.remove('hidden');
+  }
+
+  // Create Room
+  createBtn.onclick = async () => {
+    const { data: codeData, error: rpcErr } = await supabase.rpc('generate_room_code');
+    if (rpcErr) return alert(rpcErr.message);
+    const { data: roomData, error: insertErr } = await supabase
+      .from('rooms')
+      .insert({ code: codeData, host_id: localUser.id })
+      .select()
+      .single();
+    if (insertErr) return alert(insertErr.message);
+    enterRoom(roomData);
+  };
+
+  // Join Room
+  joinBtn.onclick = async () => {
+    const code = codeInput.value.trim();
+    if (!code) return;
+    const { data: rooms } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('code', code)
+      .single();
+    if (!rooms) return alert('Room not found');
+    // add participant
+    await supabase.from('participants').insert({ room_id: rooms.id, user_id: localUser.id });
+    enterRoom(rooms);
+  };
+
+  // Enter room UI
+  function enterRoom(room) {
+    currentRoom = room;
+    lobbyEl.classList.add('hidden');
+    roomEl.classList.remove('hidden');
+    roomCodeEl.textContent = room.code;
+    subscribeRoom(room.id);
+  }
+
+  // Subscribe to room changes & participants
+  function subscribeRoom(roomId) {
+    // participants
+    supabase
+      .channel(`room:${roomId}:participants`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${roomId}` }, payload => updateParticipants(payload.new))
+      .subscribe();
+
+    // room updates
+    supabase
+      .channel(`room:${roomId}:rooms`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, payload => {
+        const { current_track_url, play_at } = payload.new;
+        if (current_track_url) playBtn.disabled = false;
+        if (play_at) schedulePlayback(current_track_url, play_at);
+      })
+      .subscribe();
+
+    fetchParticipants(roomId);
+  }
+
+  async function fetchParticipants(roomId) {
+    const { data } = await supabase.from('participants').select('user_id');
+    participantsEl.innerHTML = '';
+    data.forEach(p => updateParticipants(p));
+  }
+
+  function updateParticipants(part) {
+    const li = document.createElement('li');
+    li.textContent = part.user_id;
+    participantsEl.appendChild(li);
+  }
+
+  // Upload & select track
+  uploadBtn.onclick = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const fileName = `${currentRoom.id}/${file.name}`;
+    const { data: uploadData, error: uploadErr } = await supabase.storage
+      .from('party-music')
+      .upload(fileName, file, { cacheControl: '3600', upsert: true });
+    if (uploadErr) return alert(uploadErr.message);
+
+    const url = `${SUPABASE_URL}/storage/v1/object/public/party-music/${fileName}`;
+    await supabase.from('rooms').update({ current_track_url: url }).eq('id', currentRoom.id);
+  };
+
+  // Play / Sync
+  playBtn.onclick = async () => {
+    const playAt = new Date(Date.now() + 2000).toISOString();
+    await supabase.from('rooms').update({ play_at: playAt }).eq('id', currentRoom.id);
+  };
+
+  function schedulePlayback(url, isoAt) {
+    const startTimestamp = new Date(isoAt).getTime();
+    const delay = startTimestamp - Date.now();
+    setTimeout(() => {
+      const audio = new Audio(url);
+      audio.play();
+    }, delay > 0 ? delay : 0);
+  }
+
+  // Start the app
+  init();
+</script></body>
+</html>
