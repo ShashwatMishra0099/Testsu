@@ -1,185 +1,45 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Surround Sound Party Room</title>
-  <!-- Supabase JS SDK -->
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.js';
-    window.supabase = createClient(
-      'https://kctklrigzowizlxlblat.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk'
-    );
-  </script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f0f0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-      margin-bottom: 20px;
-    }
-    button, input[type="text"], input[type="file"] {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    #participants { list-style: none; padding: 0; }
-    #participants li { padding: 5px; border-bottom: 1px solid #eee; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surround Sound Party</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Supabase JavaScript Client via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-  <div id="lobby" class="container">
-    <h2>Lobby</h2>
-    <button id="btn-create">Create Room</button>
-    <input id="input-code" type="text" placeholder="Enter Room Code" />
-    <button id="btn-join">Join Room</button>
-  </div>  <div id="room" class="container" style="display:none;">
-    <h2>Room: <span id="room-code"></span></h2>
-    <h3>Participants</h3>
-    <ul id="participants"></ul>
-    <h3>Track</h3>
-    <input id="file-input" type="file" accept="audio/*" />
-    <button id="btn-upload" disabled>Upload & Select Track</button>
-    <button id="btn-play" disabled>Play</button>
-  </div>  <script>
-    (async () => {
-      const supabase = window.supabase;
-      // Generate a pseudo-unique user ID per browser session
-      const localUserId = crypto.randomUUID();
+    <!-- Home Page -->
+    <div id="home" class="page active">
+        <h1>Surround Sound Party</h1>
+        <button onclick="showCreateRoom()">Create Room</button>
+        <button onclick="showJoinRoom()">Join Room</button>
+    </div>
 
-      // UI elements
-      const lobbyEl = document.getElementById('lobby');
-      const roomEl = document.getElementById('room');
-      const createBtn = document.getElementById('btn-create');
-      const joinBtn = document.getElementById('btn-join');
-      const codeInput = document.getElementById('input-code');
-      const roomCodeSpan = document.getElementById('room-code');
-      const participantsList = document.getElementById('participants');
-      const fileInput = document.getElementById('file-input');
-      const uploadBtn = document.getElementById('btn-upload');
-      const playBtn = document.getElementById('btn-play');
+    <!-- Create Room Page -->
+    <div id="create-room" class="page">
+        <h2>Create a Room</h2>
+        <button onclick="handleCreateRoom()">Generate Room Code</button>
+        <p id="room-code"></p>
+        <button onclick="goToRoom()" id="go-to-room" disabled>Go to Room</button>
+    </div>
 
-      let currentRoomId = null;
+    <!-- Join Room Page -->
+    <div id="join-room" class="page">
+        <h2>Join a Room</h2>
+        <input type="text" id="join-code" placeholder="Enter Room Code">
+        <button onclick="handleJoinRoom()">Join</button>
+    </div>
 
-      // Helper to enter room view
-      function enterRoom(code, roomId) {
-        currentRoomId = roomId;
-        lobbyEl.style.display = 'none';
-        roomEl.style.display = 'block';
-        roomCodeSpan.textContent = code;
-        subscribeToParticipants();
-        subscribeToRoom();
-      }
+    <!-- Room Page -->
+    <div id="room" class="page">
+        <h2>Room: <span id="room-name"></span></h2>
+        <audio id="audio" controls></audio>
+        <div id="host-controls" style="display: none;">
+            <button onclick="startPlayback()">Play Music</button>
+        </div>
+    </div>
 
-      // Create Room
-      createBtn.onclick = async () => {
-        // Generate unique code via RPC
-        const { data: code, error: codeErr } = await supabase.rpc('generate_room_code');
-        if (codeErr) return alert('Error generating code: ' + codeErr.message);
-        // Insert room record
-        const { data: room, error: roomErr } = await supabase
-          .from('rooms')
-          .insert({ code, host_id: localUserId })
-          .select('id, code')
-          .single();
-        if (roomErr) return alert('Error creating room: ' + roomErr.message);
-        enterRoom(room.code, room.id);
-      };
-
-      // Join Room
-      joinBtn.onclick = async () => {
-        const code = codeInput.value.trim();
-        if (!code) return alert('Enter a room code');
-        const { data: room, error: roomErr } = await supabase
-          .from('rooms')
-          .select('id, code')
-          .eq('code', code)
-          .single();
-        if (roomErr) return alert('Room not found');
-        // Add participant
-        const { error: partErr } = await supabase
-          .from('participants')
-          .insert({ room_id: room.id, user_id: localUserId });
-        if (partErr) return alert('Error joining room: ' + partErr.message);
-        enterRoom(room.code, room.id);
-      };
-
-      // Subscribe to participant joins
-      function subscribeToParticipants() {
-        supabase
-          .channel('participants')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}` }, ({ new: p }) => {
-            const li = document.createElement('li');
-            li.textContent = p.user_id;
-            participantsList.append(li);
-          })
-          .subscribe();
-        // Initial load
-        supabase
-          .from('participants')
-          .select('user_id')
-          .eq('room_id', currentRoomId)
-          .then(({ data }) => data.forEach(p => {
-            const li = document.createElement('li');
-            li.textContent = p.user_id;
-            participantsList.append(li);
-          }));
-      }
-
-      // Subscribe to room updates (track URL & play_at)
-      function subscribeToRoom() {
-        supabase
-          .channel('rooms')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${currentRoomId}` }, ({ new: r }) => {
-            if (r.current_track_url) uploadBtn.disabled = false;
-            if (r.play_at) schedulePlayback(r.current_track_url, r.play_at);
-          })
-          .subscribe();
-      }
-
-      // Upload and select track
-      fileInput.onchange = () => uploadBtn.disabled = !fileInput.files.length;
-      uploadBtn.onclick = async () => {
-        const file = fileInput.files[0];
-        const path = `${currentRoomId}/${file.name}`;
-        const { error: upErr } = await supabase.storage.from('party-music').upload(path, file, { upsert: true });
-        if (upErr) return alert('Upload error: ' + upErr.message);
-        const url = `${supabase.storageUrl}/object/public/party-music/${path}`;
-        const { error: updErr } = await supabase.from('rooms').update({ current_track_url: url }).eq('id', currentRoomId);
-        if (updErr) alert('Error setting track: ' + updErr.message);
-      };
-
-      // Play sync
-      playBtn.onclick = async () => {
-        const playAt = new Date(Date.now() + 2000).toISOString();
-        const { error } = await supabase.from('rooms').update({ play_at: playAt }).eq('id', currentRoomId);
-        if (error) alert('Error scheduling play: ' + error.message);
-      };
-
-      // Schedule audio playback
-      function schedulePlayback(url, playAtIso) {
-        const delay = new Date(playAtIso).getTime() - Date.now();
-        setTimeout(() => {
-          const audio = new Audio(url);
-          audio.play();
-        }, Math.max(delay, 0));
-      }
-
-    })();
-  </script></body>
+    <script type="module" src="script.js"></script>
+</body>
 </html>
