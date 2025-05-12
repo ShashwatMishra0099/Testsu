@@ -1,11 +1,11 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Supabase init
+// Supabase initialization
 const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// DOM
+// DOM elements
 const entryView = document.getElementById('entry-view');
 const roomView = document.getElementById('room-view');
 const userNameInput = document.getElementById('user-name');
@@ -18,37 +18,68 @@ const participantList = document.getElementById('participant-list');
 const endBtn = document.getElementById('end-btn');
 const leaveBtn = document.getElementById('leave-btn');
 
+// State
 let currentRoomId = null;
 let currentUserName = null;
 let currentOwnerName = null;
+let currentRoomCode = null;
 
-// Utility: random code
+// Utilities
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-// Show room view
+function saveSession() {
+  localStorage.setItem('roomId', currentRoomId);
+  localStorage.setItem('userName', currentUserName);
+  localStorage.setItem('ownerName', currentOwnerName);
+  localStorage.setItem('roomCode', currentRoomCode);
+}
+
+function clearSession() {
+  localStorage.removeItem('roomId');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('ownerName');
+  localStorage.removeItem('roomCode');
+}
+
+// Enter room view
 function enterRoom(code, name) {
   entryView.classList.add('hidden');
   roomCodeSpan.textContent = code;
   displayName.textContent = name;
-  // show End Room only for owner
   endBtn.classList.toggle('hidden', name !== currentOwnerName);
   roomView.classList.remove('hidden');
+  saveSession();
 }
 
-// Load participants
+// Reset to entry view
+function resetToEntry() {
+  clearSession();
+  roomView.classList.add('hidden');
+  entryView.classList.remove('hidden');
+  participantList.innerHTML = '';
+  userNameInput.value = '';
+  joinCodeInput.value = '';
+}
+
+// Load participants and highlight host
 async function loadParticipants() {
   const { data, error } = await supabase
     .from('participants')
     .select('user_name')
     .eq('room_id', currentRoomId);
   if (error) return console.error(error.message);
-  participantList.innerHTML = data.map(p => `<li>${p.user_name}</li>`).join('');
+  participantList.innerHTML = data
+    .map(p => {
+      const isHost = p.user_name === currentOwnerName;
+      return `<li class="${isHost ? 'text-red-500 font-semibold' : ''}">${p.user_name}</li>`;
+    })
+    .join('');
 }
 
-// Subscribe to realtime inserts
+// Subscribe to realtime new participants
 function subscribeToParticipants() {
   supabase
     .channel(`room-${currentRoomId}`)
@@ -56,7 +87,7 @@ function subscribeToParticipants() {
     .subscribe();
 }
 
-// Add participant
+// Add self as participant
 async function addParticipant() {
   const { error } = await supabase
     .from('participants')
@@ -64,7 +95,7 @@ async function addParticipant() {
   if (error) console.error(error.message);
 }
 
-// Create room
+// Create room handler
 createBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   if (!name) return alert('Enter your name.');
@@ -78,19 +109,19 @@ createBtn.addEventListener('click', async () => {
     .single();
   if (error) return alert(error.message);
   currentRoomId = data.id;
+  currentRoomCode = data.code;
   enterRoom(data.code, name);
   await addParticipant();
   await loadParticipants();
   subscribeToParticipants();
 });
 
-// Join room
+// Join room handler
 joinBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   const code = joinCodeInput.value.trim().toUpperCase();
-  if (!name || !code) return alert('Enter name and room code.');
+  if (!name || !code) return alert('Enter both name and room code.');
   currentUserName = name;
-  // get room id and owner
   const { data, error } = await supabase
     .from('rooms')
     .select('id, code, owner_name')
@@ -99,13 +130,14 @@ joinBtn.addEventListener('click', async () => {
   if (error) return alert('Room not found.');
   currentRoomId = data.id;
   currentOwnerName = data.owner_name;
+  currentRoomCode = data.code;
   enterRoom(data.code, name);
   await addParticipant();
   await loadParticipants();
   subscribeToParticipants();
 });
 
-// End room (owner)
+// End room (host only)
 endBtn.addEventListener('click', async () => {
   if (confirm('End this room?')) {
     await supabase.from('rooms').delete().eq('id', currentRoomId);
@@ -123,11 +155,19 @@ leaveBtn.addEventListener('click', async () => {
   resetToEntry();
 });
 
-// Reset UI
-function resetToEntry() {
-  roomView.classList.add('hidden');
-  entryView.classList.remove('hidden');
-  userNameInput.value = '';
-  joinCodeInput.value = '';
-  participantList.innerHTML = '';
-}
+// On load, restore session if exists
+window.addEventListener('load', async () => {
+  const storedRoomId = localStorage.getItem('roomId');
+  const storedName = localStorage.getItem('userName');
+  const storedOwner = localStorage.getItem('ownerName');
+  const storedCode = localStorage.getItem('roomCode');
+  if (storedRoomId && storedName && storedOwner && storedCode) {
+    currentRoomId = storedRoomId;
+    currentUserName = storedName;
+    currentOwnerName = storedOwner;
+    currentRoomCode = storedCode;
+    enterRoom(storedCode, storedName);
+    await loadParticipants();
+    subscribeToParticipants();
+  }
+});
