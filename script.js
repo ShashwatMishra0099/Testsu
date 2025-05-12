@@ -1,71 +1,140 @@
-const SUPA_URL = 'https://kctklrigzowizlxlblat.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
-const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
+const supabase = supabase.createClient('https://kctklrigzowizlxlblat.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk');
 
-function genRoomCode(length = 6) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
-
-document.getElementById('create-room').addEventListener('click', async () => {
-  const name = document.getElementById('creator-name').value.trim();
-  if (!name) return alert('Please enter your name');
-
-  const code = genRoomCode();
-  const { data: room, error: roomError } = await supabase
-    .from('rooms')
-    .insert({ room_code: code })
-    .single();
-  if (roomError) return alert(roomError.message);
-
-  await supabase.from('room_users').insert({ room_id: room.id, user_name: name });
-
-  document.getElementById('new-room-code').textContent = `Room Code: ${code}`;
-  openRoom(code);
+// Show create room form
+document.getElementById('create-room-btn').addEventListener('click', () => {
+  document.getElementById('main-menu').style.display = 'none';
+  document.getElementById('create-room-form').style.display = 'block';
 });
 
-document.getElementById('join-room').addEventListener('click', async () => {
-  const name = document.getElementById('join-name').value.trim();
-  const code = document.getElementById('join-code').value.trim().toUpperCase();
-  if (!name || !code) return alert('Please enter both name and room code');
-
-  const { data: room, error } = await supabase
-    .from('rooms')
-    .select('*')
-    .eq('room_code', code)
-    .single();
-  if (error || !room) return alert('Room not found');
-
-  await supabase.from('room_users').insert({ room_id: room.id, user_name: name });
-  openRoom(code);
+// Show join room form
+document.getElementById('join-room-btn').addEventListener('click', () => {
+  document.getElementById('main-menu').style.display = 'none';
+  document.getElementById('join-room-form').style.display = 'block';
 });
 
-async function openRoom(code) {
-  const { data: room } = await supabase.from('rooms').select('id').eq('room_code', code).single();
-  const { data: users } = await supabase
-    .from('room_users')
-    .select('user_name')
-    .eq('room_id', room.id);
+// Handle room creation
+document.getElementById('create-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('create-name').value;
+  if (!name) {
+    alert('Please enter your name');
+    return;
+  }
 
-  document.getElementById('current-code').textContent = code;
-  document.getElementById('create-form').classList.add('hidden');
-  document.getElementById('join-form').classList.add('hidden');
-  document.getElementById('room-view').classList.remove('hidden');
+  let roomCode;
+  let success = false;
+  while (!success) {
+    roomCode = generateRoomCode();
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert([{ room_code: roomCode }])
+      .select();
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        continue;
+      } else {
+        alert('Error creating room: ' + error.message);
+        return;
+      }
+    } else {
+      success = true;
+      const roomId = data[0].id;
+      const { error: participantError } = await supabase
+        .from('participants')
+        .insert([{ room_id: roomId, user_name: name }]);
+      if (participantError) {
+        alert('Error adding participant: ' + participantError.message);
+        return;
+      }
+      document.getElementById('create-room-form').style.display = 'none';
+      document.getElementById('room-page').style.display = 'block';
+      document.getElementById('room-code').textContent = roomCode;
+      loadParticipants(roomId);
+      supabase
+        .from(`participants:room_id=eq.${roomId}`)
+        .on('INSERT', payload => {
+          const newParticipant = payload.new;
+          const li = document.createElement('li');
+          li.textContent = newParticipant.user_name;
+          document.getElementById('participants-list').appendChild(li);
+        })
+        .subscribe();
+    }
+  }
+});
 
-  const list = document.getElementById('users-list');
-  list.innerHTML = '';
-  users.forEach(u => {
-    const li = document.createElement('li');
-    li.textContent = u.user_name;
-    list.appendChild(li);
-  });
+// Handle joining a room
+document.getElementById('join-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const code = document.getElementById('join-code').value;
+  const name = document.getElementById('join-name').value;
+  if (!code || !name) {
+    alert('Please enter room code and your name');
+    return;
+  }
 
+  const { data: rooms, error: roomError } = await supabase
+    .from('rooms')
+    .select('id')
+    .eq('room_code', code);
+  if (roomError) {
+    alert('Error fetching room: ' + roomError.message);
+    return;
+  }
+  if (rooms.length === 0) {
+    alert('Room not found');
+    return;
+  }
+
+  const roomId = rooms[0].id;
+  const { error: participantError } = await supabase
+    .from('participants')
+    .insert([{ room_id: roomId, user_name: name }]);
+  if (participantError) {
+    alert('Error joining room: ' + participantError.message);
+    return;
+  }
+
+  document.getElementById('join-room-form').style.display = 'none';
+  document.getElementById('room-page').style.display = 'block';
+  document.getElementById('room-code').textContent = code;
+  loadParticipants(roomId);
   supabase
-    .from(`room_users:room_id=eq.${room.id}`)
+    .from(`participants:room_id=eq.${roomId}`)
     .on('INSERT', payload => {
+      const newParticipant = payload.new;
       const li = document.createElement('li');
-      li.textContent = payload.new.user_name;
-      list.appendChild(li);
+      li.textContent = newParticipant.user_name;
+      document.getElementById('participants-list').appendChild(li);
     })
     .subscribe();
+});
+
+// Generate a random 6-character room code
+function generateRoomCode() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return code;
+}
+
+// Load and display participants
+async function loadParticipants(roomId) {
+  const { data, error } = await supabase
+    .from('participants')
+    .select('user_name')
+    .eq('room_id', roomId);
+  if (error) {
+    alert('Error loading participants: ' + error.message);
+    return;
+  }
+  const list = document.getElementById('participants-list');
+  list.innerHTML = '';
+  data.forEach(participant => {
+    const li = document.createElement('li');
+    li.textContent = participant.user_name;
+    list.appendChild(li);
+  });
 }
