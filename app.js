@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Supabase initialization
+// Initialize Supabase
 const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -13,7 +13,8 @@ const createBtn = document.getElementById('create-btn');
 const joinCodeInput = document.getElementById('join-code');
 const joinBtn = document.getElementById('join-btn');
 const roomCodeSpan = document.getElementById('room-code');
-const displayName = document.getElementById('display-name');
+const hostNameSpan = document.getElementById('host-name');
+const displayNameSpan = document.getElementById('display-name');
 const participantList = document.getElementById('participant-list');
 const endBtn = document.getElementById('end-btn');
 const leaveBtn = document.getElementById('leave-btn');
@@ -24,7 +25,7 @@ let currentUserName = null;
 let currentOwnerName = null;
 let currentRoomCode = null;
 
-// Utilities
+// Utils
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -44,17 +45,18 @@ function clearSession() {
   localStorage.removeItem('roomCode');
 }
 
-// Enter room view
-function enterRoom(code, name) {
+// Enter room
+function enterRoom(code, userName) {
   entryView.classList.add('hidden');
   roomCodeSpan.textContent = code;
-  displayName.textContent = name;
-  endBtn.classList.toggle('hidden', name !== currentOwnerName);
+  hostNameSpan.textContent = currentOwnerName;
+  displayNameSpan.textContent = userName;
+  endBtn.classList.toggle('hidden', userName !== currentOwnerName);
   roomView.classList.remove('hidden');
   saveSession();
 }
 
-// Reset to entry view
+// Reset
 function resetToEntry() {
   clearSession();
   roomView.classList.add('hidden');
@@ -74,20 +76,22 @@ async function loadParticipants() {
   participantList.innerHTML = data
     .map(p => {
       const isHost = p.user_name === currentOwnerName;
-      return `<li class="${isHost ? 'text-red-500 font-semibold' : ''}">${p.user_name}</li>`;
+      return `<li class=\"${isHost ? 'text-red-500 font-semibold' : ''}\">${p.user_name}</li>`;
     })
     .join('');
 }
 
-// Subscribe to realtime new participants
+// Subscribe to realtime inserts for participants
 function subscribeToParticipants() {
   supabase
     .channel(`room-${currentRoomId}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}` }, loadParticipants)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}`
+    }, loadParticipants)
     .subscribe();
 }
 
-// Add self as participant
+// Add participant
 async function addParticipant() {
   const { error } = await supabase
     .from('participants')
@@ -95,7 +99,7 @@ async function addParticipant() {
   if (error) console.error(error.message);
 }
 
-// Create room handler
+// Create room
 createBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   if (!name) return alert('Enter your name.');
@@ -116,7 +120,7 @@ createBtn.addEventListener('click', async () => {
   subscribeToParticipants();
 });
 
-// Join room handler
+// Join room
 joinBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   const code = joinCodeInput.value.trim().toUpperCase();
@@ -137,7 +141,7 @@ joinBtn.addEventListener('click', async () => {
   subscribeToParticipants();
 });
 
-// End room (host only)
+// End room
 endBtn.addEventListener('click', async () => {
   if (confirm('End this room?')) {
     await supabase.from('rooms').delete().eq('id', currentRoomId);
@@ -145,7 +149,7 @@ endBtn.addEventListener('click', async () => {
   }
 });
 
-// Leave room (participant)
+// Leave room
 leaveBtn.addEventListener('click', async () => {
   await supabase
     .from('participants')
@@ -155,7 +159,7 @@ leaveBtn.addEventListener('click', async () => {
   resetToEntry();
 });
 
-// On load, restore session if exists
+// Restore session on load
 window.addEventListener('load', async () => {
   const storedRoomId = localStorage.getItem('roomId');
   const storedName = localStorage.getItem('userName');
