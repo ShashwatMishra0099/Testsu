@@ -25,8 +25,9 @@ let currentUserName = null;
 let currentOwnerName = null;
 let currentRoomCode = null;
 let participantSubscription = null;
+let pollInterval = null;
 
-// Utils
+// Utilities
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -55,6 +56,10 @@ function enterRoom(code, userName) {
   endBtn.classList.toggle('hidden', userName !== currentOwnerName);
   roomView.classList.remove('hidden');
   saveSession();
+
+  // start polling every 10s
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(loadParticipants, 10000);
 }
 
 // Reset to entry
@@ -62,6 +67,10 @@ function resetToEntry() {
   if (participantSubscription) {
     supabase.removeChannel(participantSubscription);
     participantSubscription = null;
+  }
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
   }
   clearSession();
   roomView.classList.add('hidden');
@@ -89,17 +98,14 @@ async function loadParticipants() {
     .join('');
 }
 
-// Subscribe to realtime new participants via v1 style
+// Subscribe to realtime new participants (optional fallback)
 function subscribeToParticipants() {
-  // Unsubscribe previous
   if (participantSubscription) {
     supabase.removeChannel(participantSubscription);
   }
   participantSubscription = supabase
     .from(`participants:room_id=eq.${currentRoomId}`)
-    .on('INSERT', payload => {
-      loadParticipants();
-    })
+    .on('INSERT', payload => loadParticipants())
     .subscribe();
 }
 
