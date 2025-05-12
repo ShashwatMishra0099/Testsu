@@ -1,47 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Room Joiner</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          animation: { fadeIn: 'fadeIn 0.5s ease-out' },
-          keyframes: { fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } } }
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            darkbg: '#1a1a2e',
+            card: '#16213e',
+            accent: '#e94560'
+          },
+          boxShadow: {
+            card: '0 4px 12px rgba(0, 0, 0, 0.5)'
+          }
         }
       }
     };
   </script>
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 font-poppins">
-  <div id="app" class="min-h-screen flex items-center justify-center p-4">
+<body class="bg-darkbg text-gray-200 antialiased">
+  <div id="app" class="min-h-screen flex items-center justify-center px-4">
 
     <!-- Entry View -->
-    <div id="entry-view" class="bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
-      <h1 class="text-2xl font-semibold text-center">Create or Join a Room</h1>
-      <input id="user-name" type="text" placeholder="Your name" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring" />
+    <div id="entry-view" class="w-full max-w-md bg-card p-8 rounded-2xl shadow-card animate__animated animate__fadeInUp">
+      <h1 class="text-3xl font-bold text-center mb-6 text-white">Welcome</h1>
+      <input id="user-name" type="text" placeholder="Your name"
+        class="w-full mb-4 px-5 py-3 bg-darkbg border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent transition" />
       <div class="flex space-x-2">
-        <button id="create-btn" class="flex-1 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create</button>
-        <input id="join-code" type="text" placeholder="Room code" class="w-1/2 px-4 py-2 border rounded-md focus:outline-none focus:ring" />
-        <button id="join-btn" class="py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Join</button>
+        <button id="create-btn"
+          class="flex-1 py-3 bg-accent hover:bg-red-500 rounded-lg font-semibold transition">Create</button>
+        <input id="join-code" type="text" placeholder="Room code"
+          class="w-1/2 px-3 py-3 bg-darkbg border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent transition" />
+        <button id="join-btn"
+          class="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">Join</button>
       </div>
     </div>
 
     <!-- Room View -->
-    <div id="room-view" class="hidden bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
-      <div class="flex justify-between items-center">
-        <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-indigo-600"></span></h2>
-        <button id="end-btn" class="py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 hidden">End Room</button>
+    <div id="room-view" class="hidden w-full max-w-md bg-card p-8 rounded-2xl shadow-card animate__animated animate__fadeInUp">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-accent"></span></h2>
+          <p class="mt-1 text-sm text-gray-400">Host: <span id="host-name" class="text-red-400 font-semibold"></span></p>
+        </div>
+        <button id="end-btn" class="py-1 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-sm hidden">End</button>
       </div>
-      <p>Host: <span id="host-name" class="font-semibold text-red-500"></span></p>
-      <p>Welcome, <span id="display-name" class="font-medium"></span></p>
-      <ul id="participant-list" class="list-disc list-inside space-y-1"></ul>
-      <button id="leave-btn" class="mt-4 py-2 bg-yellow-500 text-black rounded-md hover:bg-yellow-600">Leave Room</button>
+      <p class="mb-4">Hello, <span id="display-name" class="font-medium"></span></p>
+      <ul id="participant-list" class="space-y-2 mb-6 max-h-48 overflow-auto">
+        <!-- participants -->
+      </ul>
+      <button id="leave-btn" class="w-full py-3 bg-yellow-500 hover:bg-yellow-600 rounded-lg font-semibold transition mb-2">Leave</button>
+      <button onclick="window.location.reload()" class="w-full py-2 text-sm text-gray-400 hover:underline">Refresh List</button>
     </div>
 
   </div>
