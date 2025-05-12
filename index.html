@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Room Joiner</title>
-  <!-- Poppins Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -18,33 +16,32 @@
       }
     };
   </script>
-  <!-- Supabase JS v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 font-poppins">
   <div id="app" class="min-h-screen flex items-center justify-center p-4">
-    <!-- Entry View -->
+    <!-- Entry -->
     <div id="entry-view" class="bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
       <h1 class="text-2xl font-semibold text-center">Create or Join a Room</h1>
       <input id="user-name" type="text" placeholder="Your name" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring" />
       <div class="flex space-x-2">
-        <button id="create-btn" class="flex-1 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create Room</button>
+        <button id="create-btn" class="flex-1 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create</button>
         <input id="join-code" type="text" placeholder="Room code" class="w-1/2 px-4 py-2 border rounded-md focus:outline-none focus:ring" />
         <button id="join-btn" class="py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Join</button>
       </div>
     </div>
 
-    <!-- Room View (hidden initially) -->
+    <!-- Room -->
     <div id="room-view" class="hidden bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
-      <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-indigo-600"></span></h2>
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-indigo-600"></span></h2>
+        <button id="end-btn" class="py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 hidden">End Room</button>
+      </div>
       <p>Welcome, <span id="display-name" class="font-medium"></span></p>
-      <ul id="participant-list" class="list-disc list-inside space-y-1">
-        <!-- dynamically filled -->
-      </ul>
+      <ul id="participant-list" class="list-disc list-inside space-y-1"></ul>
+      <button id="leave-btn" class="mt-4 py-2 bg-yellow-500 text-black rounded-md hover:bg-yellow-600">Leave Room</button>
     </div>
   </div>
-
-  <!-- Load app.js as module -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
