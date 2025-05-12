@@ -20,7 +20,8 @@
 </head>
 <body class="bg-gray-100 font-poppins">
   <div id="app" class="min-h-screen flex items-center justify-center p-4">
-    <!-- Entry -->
+
+    <!-- Entry View -->
     <div id="entry-view" class="bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
       <h1 class="text-2xl font-semibold text-center">Create or Join a Room</h1>
       <input id="user-name" type="text" placeholder="Your name" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring" />
@@ -31,7 +32,7 @@
       </div>
     </div>
 
-    <!-- Room -->
+    <!-- Room View -->
     <div id="room-view" class="hidden bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
       <div class="flex justify-between items-center">
         <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-indigo-600"></span></h2>
@@ -41,6 +42,7 @@
       <ul id="participant-list" class="list-disc list-inside space-y-1"></ul>
       <button id="leave-btn" class="mt-4 py-2 bg-yellow-500 text-black rounded-md hover:bg-yellow-600">Leave Room</button>
     </div>
+
   </div>
   <script type="module" src="app.js"></script>
 </body>
