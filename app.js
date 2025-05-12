@@ -1,101 +1,98 @@
-// Initialize Supabase client
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// Initialize Supabase
 const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
-const supabase = supabase_createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// UI elements
-const entryDiv = document.getElementById('entry');
-const roomDiv = document.getElementById('room');
-const usernameInput = document.getElementById('username');
-const createBtn = document.getElementById('create-room');
-const joinBtn = document.getElementById('join-room');
-const roomCodeInput = document.getElementById('room-code');
-const currentCode = document.getElementById('current-code');
-const currentUser = document.getElementById('current-user');
-const participantsList = document.getElementById('participants');
+// DOM elements
+const entryView = document.getElementById('entry-view');
+const roomView = document.getElementById('room-view');
+const userNameInput = document.getElementById('user-name');
+const createBtn = document.getElementById('create-btn');
+const joinCodeInput = document.getElementById('join-code');
+const joinBtn = document.getElementById('join-btn');
+const roomCodeSpan = document.getElementById('room-code');
+const displayName = document.getElementById('display-name');
+const participantList = document.getElementById('participant-list');
 
-let roomId = null;
-let userName = '';
+let currentRoomId = null;
+let currentUserName = null;
 
-// Generate random room code
+// Utility: generate 6-char alphanumeric code
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-// Create room
-createBtn.addEventListener('click', async () => {
-  userName = usernameInput.value.trim();
-  if (!userName) return alert('Enter name');
-
-  const code = generateCode();
-  const { data, error } = await supabase
-    .from('rooms')
-    .insert({ code, name: userName })
-    .select('id, code');
-
-  if (error) return console.error(error.message);
-  roomId = data[0].id;
-  showRoom(code);
-  await addParticipant(roomId, userName);
-});
-
-// Join room
-joinBtn.addEventListener('click', async () => {
-  userName = usernameInput.value.trim();
-  const code = roomCodeInput.value.trim().toUpperCase();
-  if (!userName || !code) return alert('Enter name and room code');
-
-  // lookup room
-  const { data, error } = await supabase
-    .from('rooms')
-    .select('id')
-    .eq('code', code)
-    .single();
-  if (error) return alert('Room not found');
-  roomId = data.id;
-  showRoom(code);
-  await addParticipant(roomId, userName);
-});
-
-// Add participant
-async function addParticipant(room_id, name) {
-  const { error } = await supabase
-    .from('participants')
-    .insert({ room_id, name });
-  if (error) return console.error(error.message);
-  fetchParticipants();
-  subscribeParticipants();
+// Show room view
+function enterRoom(code, name) {
+  entryView.classList.add('hidden');
+  roomCodeSpan.textContent = code;
+  displayName.textContent = name;
+  roomView.classList.remove('hidden');
 }
 
-// Fetch current participants
-async function fetchParticipants() {
+// Fetch and render participants
+async function loadParticipants() {
   const { data, error } = await supabase
     .from('participants')
-    .select('name')
-    .eq('room_id', roomId);
+    .select('user_name')
+    .eq('room_id', currentRoomId);
   if (error) return console.error(error.message);
-
-  participantsList.innerHTML = '';
-  data.forEach(p => {
-    const li = document.createElement('li');
-    li.textContent = p.name;
-    participantsList.appendChild(li);
-  });
+  participantList.innerHTML = data.map(p => `<li>${p.user_name}</li>`).join('');
 }
 
-// Real-time updates
-function subscribeParticipants() {
+// Real-time subscriptions (v2)
+function subscribeToParticipants() {
   supabase
-    .from(`participants:room_id=eq.${roomId}`)
-    .on('INSERT', payload => fetchParticipants())
+    .channel(`room-${currentRoomId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}` }, () => loadParticipants())
     .subscribe();
 }
 
-// UI update
-function showRoom(code) {
-  entryDiv.style.display = 'none';
-  roomDiv.style.display = 'block';
-  currentCode.textContent = code;
-  currentUser.textContent = userName;
+// Add participant record
+async function addParticipant() {
+  const { error } = await supabase
+    .from('participants')
+    .insert([{ room_id: currentRoomId, user_name: currentUserName }]);
+  if (error) console.error(error.message);
 }
+
+// Create room handler
+createBtn.addEventListener('click', async () => {
+  const name = userNameInput.value.trim();
+  if (!name) return alert('Please enter your name.');
+  currentUserName = name;
+  const code = generateCode();
+  const { data, error } = await supabase
+    .from('rooms')
+    .insert([{ code, owner_name: name }])
+    .select('id, code')
+    .single();
+  if (error) return alert(error.message);
+  currentRoomId = data.id;
+  enterRoom(data.code, name);
+  await addParticipant();
+  await loadParticipants();
+  subscribeToParticipants();
+});
+
+// Join room handler
+joinBtn.addEventListener('click', async () => {
+  const name = userNameInput.value.trim();
+  const code = joinCodeInput.value.trim().toUpperCase();
+  if (!name || !code) return alert('Enter both name and room code.');
+  currentUserName = name;
+  const { data, error } = await supabase
+    .from('rooms')
+    .select('id, code')
+    .eq('code', code)
+    .single();
+  if (error) return alert('Room not found.');
+  currentRoomId = data.id;
+  enterRoom(data.code, name);
+  await addParticipant();
+  await loadParticipants();
+  subscribeToParticipants();
+});
