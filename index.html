@@ -1,45 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surround Sound Party</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Supabase JavaScript Client via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/dist/umd/supabase.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supabase Room</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 <body>
-    <!-- Home Page -->
-    <div id="home" class="page active">
-        <h1>Surround Sound Party</h1>
-        <button onclick="showCreateRoom()">Create Room</button>
-        <button onclick="showJoinRoom()">Join Room</button>
+  <div class="container">
+    <h1>Supabase Room App</h1>
+
+    <div class="form" id="create-form">
+      <h2>Create Room</h2>
+      <input type="text" id="creator-name" placeholder="Your Name" />
+      <button id="create-room">Create Room</button>
+      <p id="new-room-code"></p>
     </div>
 
-    <!-- Create Room Page -->
-    <div id="create-room" class="page">
-        <h2>Create a Room</h2>
-        <button onclick="handleCreateRoom()">Generate Room Code</button>
-        <p id="room-code"></p>
-        <button onclick="goToRoom()" id="go-to-room" disabled>Go to Room</button>
+    <div class="form" id="join-form">
+      <h2>Join Room</h2>
+      <input type="text" id="join-name" placeholder="Your Name" />
+      <input type="text" id="join-code" placeholder="Room Code" />
+      <button id="join-room">Join Room</button>
     </div>
 
-    <!-- Join Room Page -->
-    <div id="join-room" class="page">
-        <h2>Join a Room</h2>
-        <input type="text" id="join-code" placeholder="Enter Room Code">
-        <button onclick="handleJoinRoom()">Join</button>
+    <div id="room-view" class="hidden">
+      <h2>Room: <span id="current-code"></span></h2>
+      <h3>Participants</h3>
+      <ul id="users-list"></ul>
     </div>
+  </div>
 
-    <!-- Room Page -->
-    <div id="room" class="page">
-        <h2>Room: <span id="room-name"></span></h2>
-        <audio id="audio" controls></audio>
-        <div id="host-controls" style="display: none;">
-            <button onclick="startPlayback()">Play Music</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
