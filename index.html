@@ -3,30 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Room Chat App</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Room Joiner</title>
+  <!-- Poppins Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Configure Tailwind for fade-in animation -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: { fadeIn: 'fadeIn 0.5s ease-out' },
+          keyframes: {
+            fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } }
+          }
+        }
+      }
+    };
+  </script>
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
-  <div class="container">
-    <h1>Room Chat App</h1>
-
-    <!-- Entry form -->
-    <div id="entry">
-      <input type="text" id="username" placeholder="Enter your name" />
-      <button id="create-room">Create Room</button>
-      <input type="text" id="room-code" placeholder="Enter room code to join" />
-      <button id="join-room">Join Room</button>
+<body class="bg-gray-100 font-poppins">
+  <div id="app" class="min-h-screen flex items-center justify-center p-4">
+    <!-- Entry View -->
+    <div id="entry-view" class="bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
+      <h1 class="text-2xl font-semibold text-center">Create or Join a Room</h1>
+      <input id="user-name" type="text" placeholder="Your name" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring" />
+      <div class="flex space-x-2">
+        <button id="create-btn" class="flex-1 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create Room</button>
+        <input id="join-code" type="text" placeholder="Room code" class="w-1/2 px-4 py-2 border rounded-md focus:outline-none focus:ring" />
+        <button id="join-btn" class="py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Join</button>
+      </div>
     </div>
 
-    <!-- Room display -->
-    <div id="room" style="display:none;">
-      <h2>Room: <span id="current-code"></span></h2>
-      <p>Welcome, <span id="current-user"></span></p>
-      <ul id="participants"></ul>
+    <!-- Room View (hidden initially) -->
+    <div id="room-view" class="hidden bg-white p-6 rounded-xl shadow-lg space-y-4 w-full max-w-md animate-fadeIn">
+      <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-indigo-600"></span></h2>
+      <p>Welcome, <span id="display-name" class="font-medium"></span></p>
+      <ul id="participant-list" class="list-disc list-inside space-y-1">
+        <!-- dynamically filled -->
+      </ul>
     </div>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  
   <script src="app.js"></script>
 </body>
 </html>
