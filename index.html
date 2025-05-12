@@ -1,35 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Supabase Room</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room App</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Supabase Room App</h1>
+  <div id="main-menu">
+    <button id="create-room-btn">Create Room</button>
+    <button id="join-room-btn">Join Room</button>
+  </div>
 
-    <div class="form" id="create-form">
-      <h2>Create Room</h2>
-      <input type="text" id="creator-name" placeholder="Your Name" />
-      <button id="create-room">Create Room</button>
-      <p id="new-room-code"></p>
-    </div>
+  <div id="create-room-form" style="display: none;">
+    <form id="create-form">
+      <input type="text" id="create-name" placeholder="Your name">
+      <button type="submit">Create Room</button>
+    </form>
+  </div>
 
-    <div class="form" id="join-form">
-      <h2>Join Room</h2>
-      <input type="text" id="join-name" placeholder="Your Name" />
-      <input type="text" id="join-code" placeholder="Room Code" />
-      <button id="join-room">Join Room</button>
-    </div>
+  <div id="join-room-form" style="display: none;">
+    <form id="join-form">
+      <input type="text" id="join-code" placeholder="Room code">
+      <input type="text" id="join-name" placeholder="Your name">
+      <button type="submit">Join Room</button>
+    </form>
+  </div>
 
-    <div id="room-view" class="hidden">
-      <h2>Room: <span id="current-code"></span></h2>
-      <h3>Participants</h3>
-      <ul id="users-list"></ul>
-    </div>
+  <div id="room-page" style="display: none;">
+    <h2>Room: <span id="room-code"></span></h2>
+    <h3>Participants:</h3>
+    <ul id="participants-list"></ul>
   </div>
 
   <script src="script.js"></script>
