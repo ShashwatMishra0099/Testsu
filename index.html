@@ -1,39 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Room App</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room Chat App</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="main-menu">
-    <button id="create-room-btn">Create Room</button>
-    <button id="join-room-btn">Join Room</button>
+  <div class="container">
+    <h1>Room Chat App</h1>
+
+    <!-- Entry form -->
+    <div id="entry">
+      <input type="text" id="username" placeholder="Enter your name" />
+      <button id="create-room">Create Room</button>
+      <input type="text" id="room-code" placeholder="Enter room code to join" />
+      <button id="join-room">Join Room</button>
+    </div>
+
+    <!-- Room display -->
+    <div id="room" style="display:none;">
+      <h2>Room: <span id="current-code"></span></h2>
+      <p>Welcome, <span id="current-user"></span></p>
+      <ul id="participants"></ul>
+    </div>
   </div>
 
-  <div id="create-room-form" style="display: none;">
-    <form id="create-form">
-      <input type="text" id="create-name" placeholder="Your name">
-      <button type="submit">Create Room</button>
-    </form>
-  </div>
-
-  <div id="join-room-form" style="display: none;">
-    <form id="join-form">
-      <input type="text" id="join-code" placeholder="Room code">
-      <input type="text" id="join-name" placeholder="Your name">
-      <button type="submit">Join Room</button>
-    </form>
-  </div>
-
-  <div id="room-page" style="display: none;">
-    <h2>Room: <span id="room-code"></span></h2>
-    <h3>Participants:</h3>
-    <ul id="participants-list"></ul>
-  </div>
-
-  <script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
