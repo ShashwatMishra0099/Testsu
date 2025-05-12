@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Room Joiner</title>
   <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,12 +15,20 @@
         extend: {
           fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
-            darkbg: '#1a1a2e',
-            card: '#16213e',
-            accent: '#e94560'
+            bg: '#0f0e17',
+            surface: '#1f1d2b',
+            accent: '#e94560',
+            highlight: '#4ecca3'
           },
-          boxShadow: {
-            card: '0 4px 12px rgba(0, 0, 0, 0.5)'
+          keyframes: {
+            float: {
+              '0%,100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' }
+            }
+          },
+          animation: {
+            float: 'float 3s ease-in-out infinite',
+            fadeInUp: 'fadeInUp 0.8s ease-out'
           }
         }
       }
@@ -29,41 +37,53 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-darkbg text-gray-200 antialiased">
-  <div id="app" class="min-h-screen flex items-center justify-center px-4">
+<body class="bg-bg text-gray-200 font-sans antialiased">
+  <div id="app" class="min-h-screen flex flex-col items-center justify-center px-6">
+    <!-- Floating Logo or Icon -->
+    <div class="mb-8 animate-float">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4ecca3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M8 12l2 2 4-4"></path>
+      </svg>
+    </div>
 
     <!-- Entry View -->
-    <div id="entry-view" class="w-full max-w-md bg-card p-8 rounded-2xl shadow-card animate__animated animate__fadeInUp">
-      <h1 class="text-3xl font-bold text-center mb-6 text-white">Welcome</h1>
-      <input id="user-name" type="text" placeholder="Your name"
-        class="w-full mb-4 px-5 py-3 bg-darkbg border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent transition" />
-      <div class="flex space-x-2">
-        <button id="create-btn"
-          class="flex-1 py-3 bg-accent hover:bg-red-500 rounded-lg font-semibold transition">Create</button>
-        <input id="join-code" type="text" placeholder="Room code"
-          class="w-1/2 px-3 py-3 bg-darkbg border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent transition" />
-        <button id="join-btn"
-          class="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">Join</button>
+    <div id="entry-view" class="w-full max-w-md bg-surface bg-opacity-80 backdrop-blur-md p-10 rounded-3xl shadow-xl animate__animated animate__fadeInUp">
+      <h1 class="text-4xl font-bold text-center mb-6 text-highlight">Room Portal</h1>
+      <div class="space-y-4">
+        <input id="user-name" type="text" placeholder="Your Name"
+          class="w-full px-6 py-3 bg-bg bg-opacity-50 border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-highlight transition" />
+        <div class="flex space-x-3">
+          <button id="create-btn"
+            class="flex-1 py-3 bg-accent hover:bg-opacity-80 rounded-lg font-semibold tracking-wide transition">Create Room</button>
+          <div class="relative flex-1">
+            <input id="join-code" type="text" placeholder="Room Code"
+              class="w-full px-6 py-3 pr-28 bg-bg bg-opacity-50 border border-gray-700 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-highlight transition" />
+            <button id="join-btn"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 py-2 px-4 bg-highlight hover:bg-opacity-80 rounded-lg font-semibold transition">Join</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Room View -->
-    <div id="room-view" class="hidden w-full max-w-md bg-card p-8 rounded-2xl shadow-card animate__animated animate__fadeInUp">
+    <div id="room-view" class="hidden w-full max-w-md mt-8 bg-surface bg-opacity-80 backdrop-blur-md p-8 rounded-3xl shadow-xl animate__animated animate__fadeInUp">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <h2 class="text-xl font-semibold">Room <span id="room-code" class="text-accent"></span></h2>
-          <p class="mt-1 text-sm text-gray-400">Host: <span id="host-name" class="text-red-400 font-semibold"></span></p>
+          <h2 class="text-2xl font-semibold text-highlight">Room <span id="room-code"></span></h2>
+          <p class="mt-1 text-sm text-gray-400">Host: <span id="host-name" class="text-accent font-semibold"></span></p>
         </div>
-        <button id="end-btn" class="py-1 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-sm hidden">End</button>
+        <button id="end-btn" class="py-1 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-sm">End</button>
       </div>
-      <p class="mb-4">Hello, <span id="display-name" class="font-medium"></span></p>
-      <ul id="participant-list" class="space-y-2 mb-6 max-h-48 overflow-auto">
+      <p class="mb-4">Hello, <span id="display-name" class="font-medium text-white"></span></p>
+      <ul id="participant-list" class="space-y-2 mb-6 max-h-48 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
         <!-- participants -->
       </ul>
-      <button id="leave-btn" class="w-full py-3 bg-yellow-500 hover:bg-yellow-600 rounded-lg font-semibold transition mb-2">Leave</button>
-      <button onclick="window.location.reload()" class="w-full py-2 text-sm text-gray-400 hover:underline">Refresh List</button>
+      <div class="flex flex-col space-y-3">
+        <button id="leave-btn" class="py-3 bg-highlight hover:bg-opacity-80 rounded-lg font-semibold transition">Leave Room</button>
+        <button onclick="loadParticipants()" class="py-2 text-sm text-gray-400 hover:underline">Refresh List</button>
+      </div>
     </div>
-
   </div>
   <script type="module" src="app.js"></script>
 </body>
