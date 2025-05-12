@@ -1,48 +1,22 @@
 body {
   font-family: Arial, sans-serif;
-  background: #f4f4f4;
-  margin: 0;
+  margin: 20px;
+}
+
+div {
+  margin-bottom: 20px;
+}
+
+input, button {
+  padding: 5px;
+  margin: 5px;
+}
+
+ul {
+  list-style-type: none;
   padding: 0;
 }
 
-.container {
-  max-width: 600px;
-  margin: 2rem auto;
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-h1 {
-  text-align: center;
-}
-
-.form {
-  margin-bottom: 2rem;
-}
-
-.form input {
-  width: calc(100% - 22px);
-  padding: 10px;
-  margin: 0.5rem 0;
-}
-
-.form button {
-  padding: 10px 20px;
-  cursor: pointer;
-}
-
-.hidden {
-  display: none;
-}
-
-#users-list {
-  list-style: none;
-  padding: 0;
-}
-
-#users-list li {
-  padding: 5px 0;
-  border-bottom: 1px solid #ddd;
+li {
+  margin: 5px 0;
 }
