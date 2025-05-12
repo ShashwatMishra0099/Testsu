@@ -8,15 +8,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Configure Tailwind for fade-in animation -->
   <script>
     tailwind.config = {
       theme: {
         extend: {
           animation: { fadeIn: 'fadeIn 0.5s ease-out' },
-          keyframes: {
-            fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } }
-          }
+          keyframes: { fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } } }
         }
       }
     };
@@ -46,7 +43,8 @@
       </ul>
     </div>
   </div>
-  
-  <script src="app.js"></script>
+
+  <!-- Load app.js as module -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
