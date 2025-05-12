@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Initialize Supabase
+// Initialize Supabase client
 const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -19,13 +19,13 @@ const participantList = document.getElementById('participant-list');
 let currentRoomId = null;
 let currentUserName = null;
 
-// Utility: generate 6-char alphanumeric code
+// Generate 6-char alphanumeric code
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-// Show room view
+// Show the room view
 function enterRoom(code, name) {
   entryView.classList.add('hidden');
   roomCodeSpan.textContent = code;
@@ -33,7 +33,7 @@ function enterRoom(code, name) {
   roomView.classList.remove('hidden');
 }
 
-// Fetch and render participants
+// Load existing participants
 async function loadParticipants() {
   const { data, error } = await supabase
     .from('participants')
@@ -43,15 +43,17 @@ async function loadParticipants() {
   participantList.innerHTML = data.map(p => `<li>${p.user_name}</li>`).join('');
 }
 
-// Real-time subscriptions (v2)
+// Subscribe to new participants in real time
 function subscribeToParticipants() {
   supabase
     .channel(`room-${currentRoomId}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}` }, () => loadParticipants())
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}`
+    }, () => loadParticipants())
     .subscribe();
 }
 
-// Add participant record
+// Add current user as a participant
 async function addParticipant() {
   const { error } = await supabase
     .from('participants')
@@ -59,8 +61,8 @@ async function addParticipant() {
   if (error) console.error(error.message);
 }
 
-// Create room handler
-createBtn.addEventListener('click', async () => {
+// Handle Create Room click
+ecreateBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   if (!name) return alert('Please enter your name.');
   currentUserName = name;
@@ -78,7 +80,7 @@ createBtn.addEventListener('click', async () => {
   subscribeToParticipants();
 });
 
-// Join room handler
+// Handle Join Room click
 joinBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   const code = joinCodeInput.value.trim().toUpperCase();
