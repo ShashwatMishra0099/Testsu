@@ -24,6 +24,7 @@ let currentRoomId = null;
 let currentUserName = null;
 let currentOwnerName = null;
 let currentRoomCode = null;
+let participantSubscription = null;
 
 // Utils
 function generateCode(length = 6) {
@@ -56,8 +57,12 @@ function enterRoom(code, userName) {
   saveSession();
 }
 
-// Reset
+// Reset to entry
 function resetToEntry() {
+  if (participantSubscription) {
+    supabase.removeChannel(participantSubscription);
+    participantSubscription = null;
+  }
   clearSession();
   roomView.classList.add('hidden');
   entryView.classList.remove('hidden');
@@ -72,22 +77,29 @@ async function loadParticipants() {
     .from('participants')
     .select('user_name')
     .eq('room_id', currentRoomId);
-  if (error) return console.error(error.message);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
   participantList.innerHTML = data
     .map(p => {
       const isHost = p.user_name === currentOwnerName;
-      return `<li class=\"${isHost ? 'text-red-500 font-semibold' : ''}\">${p.user_name}</li>`;
+      return `<li class="${isHost ? 'text-red-500 font-semibold' : ''}">${p.user_name}</li>`;
     })
     .join('');
 }
 
-// Subscribe to realtime inserts for participants
+// Subscribe to realtime new participants via v1 style
 function subscribeToParticipants() {
-  supabase
-    .channel(`room-${currentRoomId}`)
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'participants', filter: `room_id=eq.${currentRoomId}`
-    }, loadParticipants)
+  // Unsubscribe previous
+  if (participantSubscription) {
+    supabase.removeChannel(participantSubscription);
+  }
+  participantSubscription = supabase
+    .from(`participants:room_id=eq.${currentRoomId}`)
+    .on('INSERT', payload => {
+      loadParticipants();
+    })
     .subscribe();
 }
 
