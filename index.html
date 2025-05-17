@@ -73,26 +73,14 @@
           <h2 class="text-2xl font-semibold text-highlight">Room <span id="room-code"></span></h2>
           <p class="mt-1 text-sm text-gray-400">Host: <span id="host-name" class="text-accent font-semibold"></span></p>
         </div>
-        <div class="flex space-x-2">
-          <button id="end-btn" class="py-1 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-sm">End</button>
-          <button id="play-btn" class="py-1 px-4 bg-highlight hover:bg-opacity-80 rounded-lg text-sm hidden">Play Music</button>
-        </div>
-      </div>
-      <p class="mb-4">Hello, <span id="display-name" class="font-medium text-white"></span></p>
-      <ul id="participant-list" class="space-y-2 mb-6 max-h-48 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-        <!-- participants -->
-      </ul>
-      <div class="flex flex-col space-y-3">
-        <button id="leave-btn" class="py-3 bg-highlight hover:bg-opacity-80 rounded-lg font-semibold transition">Leave Room</button>
-        <button onclick="loadParticipants()" class="py-2 text-sm text-gray-400 hover:underline">Refresh List</button>
-      </div>
-      <!-- Audio element -->
-      <audio id="room-audio" src="https://kctklrigzowizlxlblat.supabase.co/storage/v1/object/public/Test//sweet.mp3"></audio>
-    </div>
-  </div>
         <button id="end-btn" class="py-1 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-sm">End</button>
       </div>
       <p class="mb-4">Hello, <span id="display-name" class="font-medium text-white"></span></p>
+      <!-- Play Music Button -->
+      <div class="mb-4">
+        <button id="play-music-btn" class="w-full py-2 bg-highlight hover:bg-opacity-80 rounded-lg font-semibold transition">Play Music</button>
+        <audio id="room-audio" src="https://kctklrigzowizlxlblat.supabase.co/storage/v1/object/public/Test//sweet.mp3"></audio>
+      </div>
       <ul id="participant-list" class="space-y-2 mb-6 max-h-48 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
         <!-- participants -->
       </ul>
