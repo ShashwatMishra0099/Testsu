@@ -1,11 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Constants
+// Initialize Supabase
 const SUPABASE_URL = 'https://kctklrigzowizlxlblat.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjdGtscmlnem93aXpseGxibGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMDAxODgsImV4cCI6MjA1NDY3NjE4OH0.SiqrHjSbZsEEcqtkjnNPCgR839HJIeO_uqhYk7E83Hk';
-const MUSIC_URL = 'https://kctklrigzowizlxlblat.supabase.co/storage/v1/object/public/Test//sweet.mp3';
-
-// Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // DOM elements
@@ -19,13 +16,10 @@ const roomCodeSpan = document.getElementById('room-code');
 const hostNameSpan = document.getElementById('host-name');
 const displayNameSpan = document.getElementById('display-name');
 const participantList = document.getElementById('participant-list');
+const playMusicBtn = document.getElementById('play-music-btn');
+const audioElem = document.getElementById('room-audio');
 const endBtn = document.getElementById('end-btn');
-const playBtn = document.getElementById('play-btn');
 const leaveBtn = document.getElementById('leave-btn');
-
-// Audio element
-const audioEl = document.getElementById('room-audio');
-audioEl.src = MUSIC_URL;
 
 // State
 let currentRoomId = null;
@@ -33,44 +27,63 @@ let currentUserName = null;
 let currentOwnerName = null;
 let currentRoomCode = null;
 let pollInterval = null;
+let participantSubscription = null;
+let musicChannel = null;
 
-// Utility: Generate code
+// Utility functions
 function generateCode(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-// Session storage
 function saveSession() {
   localStorage.setItem('roomId', currentRoomId);
   localStorage.setItem('userName', currentUserName);
   localStorage.setItem('ownerName', currentOwnerName);
   localStorage.setItem('roomCode', currentRoomCode);
 }
+
 function clearSession() {
-  localStorage.clear();
+  localStorage.removeItem('roomId');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('ownerName');
+  localStorage.removeItem('roomCode');
 }
 
-// Enter room viewunction enterRoom(code, userName) {
+// Show the room view and start polling + music sync
+function enterRoom(code, userName) {
   entryView.classList.add('hidden');
-  roomView.classList.remove('hidden');
   roomCodeSpan.textContent = code;
   hostNameSpan.textContent = currentOwnerName;
   displayNameSpan.textContent = userName;
-  // Show Play for host
-  playBtn.classList.toggle('hidden', userName !== currentOwnerName);
   endBtn.classList.toggle('hidden', userName !== currentOwnerName);
+  roomView.classList.remove('hidden');
   saveSession();
-  // Start polling
+
+  // Start polling participants every 10 seconds
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(loadParticipants, 10000);
-  // Subscribe to events
-  subscribeToParticipants();
-  subscribeToRoomEvents();
+
+  // Set up real-time music sync
+  setupMusicSync();
 }
 
-// Reset to entry viewunction resetToEntry() {
-  if (pollInterval) clearInterval(pollInterval);
+// Reset UI back to entry view
+function resetToEntry() {
+  // Unsubscribe from real-time channels
+  if (participantSubscription) {
+    supabase.removeChannel(participantSubscription);
+    participantSubscription = null;
+  }
+  if (musicChannel) {
+    supabase.removeChannel(musicChannel);
+    musicChannel = null;
+  }
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+
   clearSession();
   roomView.classList.add('hidden');
   entryView.classList.remove('hidden');
@@ -79,47 +92,52 @@ function clearSession() {
   joinCodeInput.value = '';
 }
 
-// Load participantssync function loadParticipants() {
-  const { data, error } = await supabase.from('participants').select('user_name').eq('room_id', currentRoomId);
-  if (error) return console.error(error);
-  participantList.innerHTML = data.map(p => {
-    const isHost = p.user_name === currentOwnerName;
-    return `<li class="${isHost ? 'text-accent font-semibold' : ''}">${p.user_name}</li>`;
-  }).join('');
-}
-
-// Real-time subscriptions
-function subscribeToParticipants() {
-  supabase.from(`participants:room_id=eq.${currentRoomId}`)
-    .on('INSERT', () => loadParticipants())
-    .subscribe();
-}
-function subscribeToRoomEvents() {
-  supabase.from(`room_events:room_id=eq.${currentRoomId}`)
-    .on('INSERT', payload => {
-      const evt = payload.new;
-      if (evt.event_type === 'play_music') {
-        audioEl.currentTime = 0;
-        audioEl.play().catch(e => console.error(e));
-      }
+// Fetch participants and update list
+async function loadParticipants() {
+  const { data, error } = await supabase
+    .from('participants')
+    .select('user_name')
+    .eq('room_id', currentRoomId);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  participantList.innerHTML = data
+    .map(p => {
+      const isHost = p.user_name === currentOwnerName;
+      return `<li class="${isHost ? 'text-accent font-semibold' : ''}">${p.user_name}</li>`;
     })
+    .join('');
+}
+
+// Set up polling + fallback real-time subscription
+function subscribeToParticipants() {
+  if (participantSubscription) {
+    supabase.removeChannel(participantSubscription);
+  }
+  participantSubscription = supabase
+    .from(`participants:room_id=eq.${currentRoomId}`)
+    .on('INSERT', payload => loadParticipants())
     .subscribe();
 }
 
-// Add participantsync function addParticipant() {
-  const { error } = await supabase.from('participants')
+// Add current user to participants table
+async function addParticipant() {
+  const { error } = await supabase
+    .from('participants')
     .insert([{ room_id: currentRoomId, user_name: currentUserName }]);
-  if (error) console.error(error);
+  if (error) console.error(error.message);
 }
 
-// Create room
+// Create a new room (owner + participant)
 createBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
-  if (!name) return alert('Enter name');
+  if (!name) return alert('Enter your name.');
   currentUserName = name;
   currentOwnerName = name;
   const code = generateCode();
-  const { data, error } = await supabase.from('rooms')
+  const { data, error } = await supabase
+    .from('rooms')
     .insert([{ code, owner_name: name }])
     .select('id, code')
     .single();
@@ -129,56 +147,85 @@ createBtn.addEventListener('click', async () => {
   enterRoom(data.code, name);
   await addParticipant();
   await loadParticipants();
+  subscribeToParticipants();
 });
 
-// Join room
+// Join an existing room
 joinBtn.addEventListener('click', async () => {
   const name = userNameInput.value.trim();
   const code = joinCodeInput.value.trim().toUpperCase();
-  if (!name || !code) return alert('Enter both');
+  if (!name || !code) return alert('Enter both name and room code.');
   currentUserName = name;
-  const { data, error } = await supabase.from('rooms')
+  const { data, error } = await supabase
+    .from('rooms')
     .select('id, code, owner_name')
     .eq('code', code)
     .single();
-  if (error) return alert('Room not found');
+  if (error) return alert('Room not found.');
   currentRoomId = data.id;
   currentOwnerName = data.owner_name;
   currentRoomCode = data.code;
   enterRoom(data.code, name);
   await addParticipant();
   await loadParticipants();
+  subscribeToParticipants();
 });
 
-// Play music (host)
-playBtn.addEventListener('click', async () => {
-  const { error } = await supabase.from('room_events')
-    .insert([{ room_id: currentRoomId, event_type: 'play_music', payload: { url: MUSIC_URL } }]);
-  if (error) console.error(error);
-  audioEl.currentTime = 0;
-  audioEl.play().catch(e => console.error(e));
-});
-
-// End & leave
+// End the room (owner only)
 endBtn.addEventListener('click', async () => {
-  if (confirm('End room?')) {
+  if (confirm('End this room?')) {
     await supabase.from('rooms').delete().eq('id', currentRoomId);
     resetToEntry();
   }
 });
+
+// Leave the room (participant only)
 leaveBtn.addEventListener('click', async () => {
-  await supabase.from('participants').delete().eq('room_id', currentRoomId).eq('user_name', currentUserName);
+  await supabase
+    .from('participants')
+    .delete()
+    .eq('room_id', currentRoomId)
+    .eq('user_name', currentUserName);
   resetToEntry();
 });
 
-// Restore session
-window.addEventListener('load', async () => {
-  const stored = localStorage.getItem('roomId');
-  if (!stored) return;
-  currentRoomId = stored;
-  currentUserName = localStorage.getItem('userName');
-  currentOwnerName = localStorage.getItem('ownerName');
-  currentRoomCode = localStorage.getItem('roomCode');
-  enterRoom(currentRoomCode, currentUserName);
-  await loadParticipants();
+// Music synchronization
+function setupMusicSync() {
+  // Subscribe to a broadcast channel for music events
+  musicChannel = supabase
+    .channel(`music-${currentRoomId}`)
+    .on('broadcast', { event: 'playMusic' }, () => {
+      audioElem.currentTime = 0;
+      audioElem.play();
+    })
+    .subscribe();
+
+  // Host can broadcast
+  if (currentUserName === currentOwnerName) {
+    playMusicBtn.classList.remove('hidden');
+    playMusicBtn.addEventListener('click', () => {
+      audioElem.currentTime = 0;
+      audioElem.play();
+      musicChannel.broadcast({ event: 'playMusic', payload: {} });
+    });
+  } else {
+    playMusicBtn.classList.add('hidden');
+  }
+}
+
+// Restore session on page load
+document.addEventListener('DOMContentLoaded', async () => {
+  const storedRoomId = localStorage.getItem('roomId');
+  const storedName = localStorage.getItem('userName');
+  const storedOwner = localStorage.getItem('ownerName');
+  const storedCode = localStorage.getItem('roomCode');
+  if (storedRoomId && storedName && storedOwner && storedCode) {
+    currentRoomId = storedRoomId;
+    currentUserName = storedName;
+    currentOwnerName = storedOwner;
+    currentRoomCode = storedCode;
+    enterRoom(storedCode, storedName);
+    await loadParticipants();
+    subscribeToParticipants();
+  }
 });
