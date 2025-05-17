@@ -17,6 +17,7 @@ const hostNameSpan = document.getElementById('host-name');
 const displayNameSpan = document.getElementById('display-name');
 const participantList = document.getElementById('participant-list');
 const playMusicBtn = document.getElementById('play-music-btn');
+const stopMusicBtn = document.getElementById('stop-music-btn');
 const audioElem = document.getElementById('room-audio');
 const endBtn = document.getElementById('end-btn');
 const leaveBtn = document.getElementById('leave-btn');
@@ -64,7 +65,7 @@ function enterRoom(code, userName) {
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(loadParticipants, 10000);
 
-  // Set up real-time music sync
+  // Set up real-time music sync and controls
   setupMusicSync();
 }
 
@@ -189,7 +190,7 @@ leaveBtn.addEventListener('click', async () => {
   resetToEntry();
 });
 
-// Music synchronization
+// Music synchronization and controls
 function setupMusicSync() {
   // Subscribe to a broadcast channel for music events
   musicChannel = supabase
@@ -198,18 +199,29 @@ function setupMusicSync() {
       audioElem.currentTime = 0;
       audioElem.play();
     })
+    .on('broadcast', { event: 'stopMusic' }, () => {
+      audioElem.pause();
+      audioElem.currentTime = 0;
+    })
     .subscribe();
 
-  // Host can broadcast
+  // Host controls
   if (currentUserName === currentOwnerName) {
     playMusicBtn.classList.remove('hidden');
+    stopMusicBtn.classList.remove('hidden');
     playMusicBtn.addEventListener('click', () => {
       audioElem.currentTime = 0;
       audioElem.play();
       musicChannel.broadcast({ event: 'playMusic', payload: {} });
     });
+    stopMusicBtn.addEventListener('click', () => {
+      audioElem.pause();
+      audioElem.currentTime = 0;
+      musicChannel.broadcast({ event: 'stopMusic', payload: {} });
+    });
   } else {
     playMusicBtn.classList.add('hidden');
+    stopMusicBtn.classList.add('hidden');
   }
 }
 
